@@ -23,46 +23,9 @@ type Logger interface {
 
 //r["PROBE"] 总探针数、r["MATCH"] 总指纹数 、r["USED_PROBE"] 已使用探针数、r["USED_MATCH"] 已使用指纹数
 func init() {
-	initWithFilter(9)
-}
-
-func initWithFilter(filter int) {
-	//初始化NMAP探针库
-	repairNMAPString()
-	nmap = &Nmap{
-		exclude:      emptyPortList,
-		probeNameMap: make(map[string]*probe),
-		probeSort:    []string{},
-		portProbeMap: make(map[int]ProbeList),
-
-		filter:  filter,
-		timeout: time.Second,
-
-		probeUsed:          emptyProbeList,
-		bypassAllProbePort: []int{161, 137, 139, 135, 389, 443, 548, 1433, 6379, 1883, 5432, 1521, 3389, 3388, 3389, 33890, 33900},
-		sslSecondProbeMap:  []string{"TCP_TerminalServerCookie", "TCP_TerminalServer"},
-		allProbeMap:        []string{"TCP_GetRequest", "TCP_NULL"},
-		sslProbeMap:        []string{"TCP_TLSSessionReq", "TCP_SSLSessionReq", "TCP_SSLv23SessionReq"},
-	}
-	for i := 0; i <= 65535; i++ {
-		nmap.portProbeMap[i] = []string{}
-	}
-	nmap.loads(nmapServiceProbes + nmapCustomizeProbes)
-	//修复fallback
-	nmap.fixFallback()
-	//新增自定义指纹信息
-	customNMAPMatch()
-	//优化检测逻辑，及端口对应的默认探针
-	optimizeNMAPProbes()
-	//排序
-	nmap.sslSecondProbeMap = nmap.sortOfRarity(nmap.sslSecondProbeMap)
-	nmap.allProbeMap = nmap.sortOfRarity(nmap.allProbeMap)
-	nmap.sslProbeMap = nmap.sortOfRarity(nmap.sslProbeMap)
-	for index, value := range nmap.portProbeMap {
-		nmap.portProbeMap[index] = nmap.sortOfRarity(value)
-	}
-	//输出统计数据状态
-	statistical()
+	//initWithFilter(9)
+	//f,_ := os.OpenFile("/Users/zhoushengzhao/Develop/JJCode/gloria/src/logs/nmap.log",os.O_WRONLY|os.O_CREATE,0664)
+	//logger = Logger(log.New(f, "[gonmap] ", log.Ldate|log.Ltime|log.Lshortfile))
 }
 
 func statistical() {
@@ -164,18 +127,53 @@ func optimizeNMAPProbes() {
 }
 
 //配置类
-func SetFilter(filter int) {
-	initWithFilter(filter)
-}
+//func SetFilter(filter int) {
+//	initWithFilter(filter)
+//}
 
 func SetLogger(v Logger) {
 	logger = v
 }
 
 //功能类
-func New() *Nmap {
-	n := *nmap
-	return &n
+func New(filter int) *Nmap {
+	nmap = &Nmap{
+		exclude:      emptyPortList,
+		probeNameMap: make(map[string]*probe),
+		probeSort:    []string{},
+		portProbeMap: make(map[int]ProbeList),
+
+		filter:  filter,
+		timeout: time.Second,
+
+		probeUsed:          emptyProbeList,
+		bypassAllProbePort: []int{161, 137, 139, 135, 389, 443, 548, 1433, 6379, 1883, 5432, 1521, 3389, 3388, 3389, 33890, 33900},
+		sslSecondProbeMap:  []string{"TCP_TerminalServerCookie", "TCP_TerminalServer"},
+		allProbeMap:        []string{"TCP_GetRequest", "TCP_NULL"},
+		sslProbeMap:        []string{"TCP_TLSSessionReq", "TCP_SSLSessionReq", "TCP_SSLv23SessionReq"},
+	}
+	repairNMAPString()
+	for i := 0; i <= 65535; i++ {
+		nmap.portProbeMap[i] = []string{}
+	}
+	nmap.loads(nmapServiceProbes + nmapCustomizeProbes)
+	//修复fallback
+	nmap.fixFallback()
+	//新增自定义指纹信息
+	customNMAPMatch()
+	//优化检测逻辑，及端口对应的默认探针
+	optimizeNMAPProbes()
+
+	//排序
+	nmap.sslSecondProbeMap = nmap.sortOfRarity(nmap.sslSecondProbeMap)
+	nmap.allProbeMap = nmap.sortOfRarity(nmap.allProbeMap)
+	nmap.sslProbeMap = nmap.sortOfRarity(nmap.sslProbeMap)
+	for index, value := range nmap.portProbeMap {
+		nmap.portProbeMap[index] = nmap.sortOfRarity(value)
+	}
+	//输出统计数据状态
+	statistical()
+	return nmap
 }
 
 func GuessProtocol(port int) string {

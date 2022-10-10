@@ -29,8 +29,8 @@ type Nmap struct {
 
 //扫描类
 
-func (n *Nmap) ScanTimeout(ip string, port int, timeout time.Duration) (status Status, response *Response) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func (n *Nmap) ScanTimeout(ctx context.Context, ip string, port int, timeout time.Duration) (status Status, response *Response) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	var resChan = make(chan bool)
 
 	defer func() {
@@ -68,14 +68,26 @@ func (n *Nmap) Scan(ip string, port int) (status Status, response *Response) {
 	probeNames = append(probeNames, n.sslProbeMap...)
 	//探针去重
 	probeNames = probeNames.removeDuplicate()
-
-	firstProbe := probeNames[0]
+	var udpProbeNames ProbeList
+	var tcpProbeNames ProbeList
+	for _, name := range probeNames {
+		if strings.HasPrefix(name, "UDP") {
+			udpProbeNames = append(udpProbeNames, name)
+		} else {
+			tcpProbeNames = append(tcpProbeNames, name)
+		}
+	}
+	firstProbe := tcpProbeNames[0]
 	status, response = n.getRealResponse(ip, port, n.timeout, firstProbe)
-	if status == Closed || status == Matched {
+	if status == Matched {
 		return status, response
 	}
-	otherProbes := probeNames[1:]
-	return n.getRealResponse(ip, port, 2*time.Second, otherProbes...)
+	if status == Closed {
+		//UDP检测
+		return n.getRealResponse(ip, port, n.timeout, udpProbeNames...)
+	}
+	otherProbes := tcpProbeNames[1:]
+	return n.getRealResponse(ip, port, n.timeout, otherProbes...)
 }
 
 func (n *Nmap) getRealResponse(host string, port int, timeout time.Duration, probes ...string) (status Status, response *Response) {
@@ -110,10 +122,10 @@ func (n *Nmap) getResponseBySSLSecondProbes(host string, port int, timeout time.
 func (n *Nmap) getResponseByProbes(host string, port int, timeout time.Duration, probes ...string) (status Status, response *Response) {
 	var responseNotMatch *Response
 	for _, requestName := range probes {
-		if n.probeUsed.exist(requestName) {
-			continue
-		}
-		n.probeUsed = append(n.probeUsed, requestName)
+		//if n.probeUsed.exist(requestName) {
+		//	continue
+		//}
+		//n.probeUsed = append(n.probeUsed, requestName)
 
 		status, response = n.getResponse(host, port, timeout, n.probeNameMap[requestName])
 		//如果端口未开放，则等待10s后重新连接
@@ -121,7 +133,6 @@ func (n *Nmap) getResponseByProbes(host string, port int, timeout time.Duration,
 		//	time.Sleep(time.Second * 10)
 		//	b.Load(n.getResponse(host, port, n.probeNameMap[requestName]))
 		//}
-
 		//logger.Printf("Target:%s:%d,Probe:%s,Status:%v", host, port, requestName, status)
 
 		if status == Closed || status == Matched {
@@ -148,7 +159,6 @@ func (n *Nmap) getResponse(host string, port int, timeout time.Duration, p *prob
 	}
 
 	text, tls, err := p.scan(host, port, p.sslports.exist(port), timeout, 10240)
-
 	if err != nil {
 		if strings.Contains(err.Error(), "STEP1") {
 			return Closed, nil

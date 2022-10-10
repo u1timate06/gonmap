@@ -3,11 +3,12 @@ package gonmap
 import (
 	"errors"
 	"fmt"
-	"github.com/lcvvvv/gonmap/simplenet"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lcvvvv/gonmap/simplenet"
 )
 
 type probe struct {
@@ -53,7 +54,6 @@ func (p *probe) scan(host string, port int, tls bool, timeout time.Duration, siz
 func (p *probe) match(s string) *FingerPrint {
 	var f = &FingerPrint{}
 	var softFilter string
-
 	for _, m := range p.matchGroup {
 		//实现软筛选
 		if softFilter != "" {
@@ -91,7 +91,11 @@ func parseProbe(lines []string) *probe {
 	p.sslports = emptyPortList
 	for _, line := range lines {
 		p.loadLine(line)
+
 	}
+	//for _, m := range p.matchGroup {
+	//	fmt.Printf("%d\t%+v\n", p.rarity, m)
+	//}
 	return p
 }
 

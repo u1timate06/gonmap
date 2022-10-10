@@ -72,6 +72,7 @@ func parseMatch(s string, soft bool) *match {
 
 func (m *match) getPatternRegexp(pattern string, opt string) *regexp.Regexp {
 	pattern = strings.ReplaceAll(pattern, `\0`, `\x00`)
+
 	if opt != "" {
 		if strings.Contains(opt, "i") == false {
 			opt += "i"
